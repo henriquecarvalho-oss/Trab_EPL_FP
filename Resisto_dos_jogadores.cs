@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MonopolyGameLogic; 
-using MonopolyBoard; // <-- MUDANÇA 1: Adicionar using
+using MonopolyBoard; 
 
 namespace Resisto_dos_jogadores
 {
     public class SistemaJogo
     {
-        // ... (classe Jogador fica igual, com PosicaoX e PosicaoY) ...
+        // ... (classe Jogador fica igual) ...
         public class Jogador
         {
             public string Nome { get; set; }
@@ -33,25 +33,38 @@ namespace Resisto_dos_jogadores
 
         private readonly List<Jogador> jogadores = new();
         private readonly DiceRoller diceRoller = new();
-        
-        // <-- MUDANÇA 2: Guardar uma referência ao tabuleiro
         private readonly Board board;
+        
+        private bool jogoIniciado = false;
 
-        // <-- MUDANÇA 3: Adicionar um construtor que "recebe" o tabuleiro
+        public bool JogoIniciado
+        {
+            get { return jogoIniciado; }
+        }
+        
+        // <-- MUDANÇA 1: Propriedade para o Program.cs saber a contagem
+        public int ContagemJogadores
+        {
+            get { return jogadores.Count; }
+        }
+
         public SistemaJogo(Board board)
         {
             this.board = board;
         }
 
-        // ... (ObterJogadoresOrdenados e ExecutarComando ficam iguais) ...
+        // ... (ObterJogadoresOrdenados fica igual) ...
         public IEnumerable<Jogador> ObterJogadoresOrdenados()
         {
             return jogadores
                 .OrderByDescending(j => j.Vitorias)
                 .ThenBy(j => j.Nome);
         }
+
+        // *** MÉTODO 'ExecutarComando' ATUALIZADO ***
         public bool ExecutarComando(string linha)
         {
+            // ... (Q, split, etc. fica igual) ...
             string linhaLimpa = linha.Trim();
 
             if (linhaLimpa.Equals("q", StringComparison.OrdinalIgnoreCase))
@@ -72,7 +85,37 @@ namespace Resisto_dos_jogadores
 
             switch (instrucao)
             {
+                case "IJ":
+                    if (partes.Length != 1)
+                    {
+                        MostrarInstrucaoInvalida();
+                        return false;
+                    }
+                    else
+                    {
+                        IniciarJogo();
+                    }
+                    break;
+
                 case "RJ":
+                    // Proteção 1: Jogo já começou?
+                    if (jogoIniciado)
+                    {
+                        Console.WriteLine("Erro: Não pode registar jogadores depois do jogo começar.");
+                        Console.Write("Pressione Enter para continuar...");
+                        Console.ReadLine();
+                        return false;
+                    }
+                    
+                    // <-- MUDANÇA 2: Proteção 2 (Limite Máximo)
+                    if (jogadores.Count >= 5)
+                    {
+                        Console.WriteLine("Erro: O limite máximo de 5 jogadores foi atingido.");
+                        Console.Write("Pressione Enter para continuar...");
+                        Console.ReadLine();
+                        return false; 
+                    }
+                    
                     if (partes.Length != 2)
                     {
                         MostrarInstrucaoInvalida();
@@ -85,6 +128,14 @@ namespace Resisto_dos_jogadores
                     break;
 
                 case "LD":
+                    if (!jogoIniciado)
+                    {
+                        Console.WriteLine("Erro: O jogo ainda não começou. Use o comando 'IJ'.");
+                        Console.Write("Pressione Enter para continuar...");
+                        Console.ReadLine();
+                        return false;
+                    }
+                    
                     if (partes.Length != 2)
                     {
                         MostrarInstrucaoInvalida();
@@ -104,6 +155,35 @@ namespace Resisto_dos_jogadores
             return true;
         }
 
+        // *** MÉTODO 'IniciarJogo' ATUALIZADO ***
+        private void IniciarJogo()
+        {
+            if (jogoIniciado)
+            {
+                Console.WriteLine("O jogo já foi iniciado.");
+                Console.Write("Pressione Enter para continuar...");
+                Console.ReadLine();
+                return;
+            }
+
+            // <-- MUDANÇA 3: Alterar a verificação de 0 para 2 (Limite Mínimo)
+            if (jogadores.Count < 2)
+            {
+                Console.WriteLine($"Erro: São necessários pelo menos 2 jogadores para iniciar. (Atuais: {jogadores.Count})");
+                Console.Write("Pressione Enter para continuar...");
+                Console.ReadLine();
+                return;
+            }
+
+            jogoIniciado = true;
+            Console.WriteLine("--- O JOGO COMEÇOU ---");
+            Console.WriteLine($"A jogar com {jogadores.Count} jogadores.");
+            Console.WriteLine("Registo de jogadores bloqueado.");
+            Console.WriteLine("Lançamento de dados (LD) disponível.");
+        }
+
+
+        // ... (RegistarJogador, LancarDados, MostrarInstrucaoInvalida ficam iguais) ...
         private void RegistarJogador(string nome)
         {
             if (jogadores.Any(j => j.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase)))
@@ -117,7 +197,6 @@ namespace Resisto_dos_jogadores
             jogadores.Add(new Jogador(nome));
         }
         
-        // *** MÉTODO 'LancarDados' ATUALIZADO ***
         private void LancarDados(string nomeJogador)
         {
             var jogador = jogadores.FirstOrDefault(j => j.Nome.Equals(nomeJogador, StringComparison.OrdinalIgnoreCase));
@@ -135,17 +214,13 @@ namespace Resisto_dos_jogadores
             
             jogador.PosicaoX = Math.Clamp(novaPosX, 0, 6);
             jogador.PosicaoY = Math.Clamp(novaPosY, 0, 6);
-
-            // <-- MUDANÇA 4: Usar o 'board' para obter o nome
-            // (Y é a linha, X é a coluna)
+            
             string nomeCasa = board.GetSpaceName(jogador.PosicaoY, jogador.PosicaoX);
 
-            // <-- MUDANÇA 5: Atualizar a mensagem de saída
             Console.WriteLine($"{jogador.Nome} (Jogos:{jogador.Jogos} V:{jogador.Vitorias} E:{jogador.Empates} D:{jogador.Derrotas}) - Posição: ({jogador.PosicaoX}, {jogador.PosicaoY}) [{nomeCasa}]");
             Console.WriteLine($"  (Dados lançados: X={resultado.HorizontalMove}, Y={resultado.VerticalMove})");
         }
-
-        // ... (MostrarInstrucaoInvalida fica igual) ...
+        
         private void MostrarInstrucaoInvalida()
         {
             Console.WriteLine("2025-2026");
