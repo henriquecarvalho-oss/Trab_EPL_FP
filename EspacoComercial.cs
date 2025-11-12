@@ -15,6 +15,7 @@ namespace MonopolyGameLogic
 
     public class EspacoComercial
     {
+        // --- DICIONÁRIOS ESTÁTICOS (COM DADOS) ---
         private static readonly Dictionary<string, int> PrecosBase = new()
         {
             { "Brown1", 100 }, { "Brown2", 120 }, { "Teal1", 90 }, { "Teal2", 130 },
@@ -52,6 +53,9 @@ namespace MonopolyGameLogic
         public int NivelCasa { get; set; }
         public int PrecoCasa { get; } 
         public string Cor { get; } 
+        public bool Hipotecado { get; set; }
+        public int ValorHipoteca { get; }
+
         
         // Construtor
         public EspacoComercial(string nome, int preco)
@@ -62,6 +66,8 @@ namespace MonopolyGameLogic
             NivelCasa = 0; 
             PrecoCasa = (int)(Preco * 0.6); 
             Cor = ObterCorDaPropriedade(nome);
+            Hipotecado = false;
+            ValorHipoteca = Preco / 2; 
         }
         
         
@@ -145,7 +151,14 @@ namespace MonopolyGameLogic
                 }
                 else
                 {
-                    PagarRenda(jogador, this.Dono, sistema);
+                    if (this.Hipotecado)
+                    {
+                        Console.WriteLine($"  Você aterrou em [{this.Nome}], que pertence a {this.Dono.Nome}, mas está HIPOTECADO. Não paga renda.");
+                    }
+                    else
+                    {
+                        PagarRenda(jogador, this.Dono, sistema);
+                    }
                 }
             }
             Console.Write("  Pressione Enter para continuar...");
@@ -196,9 +209,6 @@ namespace MonopolyGameLogic
             {
                 var jogadoresElegiveis = outrosJogadores.Where(j => j.Dinheiro > 0).ToList();
                 
-                // ==================================================================================
-                // <-- MUDANÇA AQUI: Passar "sistema" para o IniciarLeilao -->
-                // ==================================================================================
                 if (jogadoresElegiveis.Count > 0) { IniciarLeilao(jogadoresElegiveis, sistema); }
                 else { Console.WriteLine("  Nenhum outro jogador tem dinheiro para o leilão. A propriedade continua sem dono."); }
             }
@@ -233,9 +243,6 @@ namespace MonopolyGameLogic
             else { Console.WriteLine($"  {compradorPotencial.Nome} recusou. A propriedade continua sem dono."); }
         }
 
-        // ==================================================================================
-        // <-- MUDANÇA AQUI: "IniciarLeilao" agora recebe "SistemaJogo sistema" -->
-        // ==================================================================================
         private void IniciarLeilao(List<SistemaJogo.Jogador> licitantes, SistemaJogo sistema)
         {
             Console.WriteLine($"\n--- LEILÃO INICIADO PARA: {this.Nome} ---");
@@ -292,9 +299,6 @@ namespace MonopolyGameLogic
                 Console.WriteLine($"--- LEILÃO ENCERRADO ---");
                 Console.WriteLine($"  Vendido a {vencedor.Nome} por ${licitacaoAtual}!");
                 
-                // ==================================================================================
-                // <-- MUDANÇA AQUI: Esta linha agora está correta -->
-                // ==================================================================================
                 if (sistema.TentarPagar(vencedor, licitacaoAtual, "leilão"))
                 {
                     this.Dono = vencedor;

@@ -9,7 +9,6 @@ class Program
     static Board board = new Board();
     static SistemaJogo sistema = new SistemaJogo(board); 
     
-    // Constante para o centro do tabuleiro (Offset)
     private const int CentroTabuleiro = 3;
 
     static void Main()
@@ -43,16 +42,19 @@ class Program
         
         var jogadores = sistema.ObterJogadoresOrdenados();
         
-        // Passa a lista de jogadores para o método Display()
         board.Display(jogadores); 
 
         Console.WriteLine("\n--- Jogadores Registados ---");
         
+        // <-- MUDANÇA AQUI: Mostrar o estado de TODAS as opções de jogo -->
         if (!sistema.JogoIniciado)
         {
             Console.WriteLine($"({sistema.ContagemJogadores}/5 jogadores registados)");
-            string estadoLeilao = sistema.LeiloesAtivos ? "LIGADOS" : "DESLIGADOS";
-            Console.WriteLine($"  (Opção: Leilões estão {estadoLeilao})");
+            string eLeilao = sistema.LeiloesAtivos ? "LIGADOS" : "DESLIGADOS";
+            string eVenda = sistema.VendaCasasAtiva ? "LIGADA" : "DESLIGADA";
+            string eHipot = sistema.HipotecasAtivas ? "LIGADA" : "DESLIGADA";
+            
+            Console.WriteLine($"  Opções: Leilões ({eLeilao}) | Venda Casas ({eVenda}) | Hipotecas ({eHipot})");
         }
         
         var jogadorAtual = sistema.JogadorAtual; 
@@ -63,9 +65,6 @@ class Program
         }
         else
         {
-            // ==================================================================================
-            // <-- MUDANÇA AQUI: Reintroduzida a informação de Posição -->
-            // ==================================================================================
             foreach (var j in jogadores)
             {
                 if (sistema.JogoIniciado && !j.EstaEmJogo)
@@ -76,19 +75,15 @@ class Program
                 {
                     string prefixo = (j == jogadorAtual) ? "→ " : "- ";
                     
-                    // 1. Obter a Posição (Lógica e de Matriz)
                     int arrayRow = j.PosicaoY + CentroTabuleiro;
                     int arrayCol = j.PosicaoX + CentroTabuleiro;
                     string nomeCasa = board.GetSpaceName(arrayRow, arrayCol);
                     
-                    // 2. Obter o Estado (ex: Preso)
                     string estado = j.EstaPreso ? " (Preso)" : "";
                     
-                    // 3. Imprimir a linha completa
                     Console.WriteLine($"{prefixo}{j.Nome} (${j.Dinheiro}){estado} Posição: ({j.PosicaoX}, {j.PosicaoY}) [{nomeCasa}]");
                 }
             }
-            // ==================================================================================
         }
 
         if (sistema.JogoIniciado)
@@ -114,6 +109,17 @@ class Program
         {
             Console.WriteLine("  LD              → Lança os dados (inicia o turno)");
             Console.WriteLine("  CC              → Abre o menu de compra de casas");
+            
+            // <-- MUDANÇA AQUI: Novos comandos VC e H adicionados -->
+            if (sistema.VendaCasasAtiva)
+            {
+                Console.WriteLine("  VC              → Abre o menu de venda de casas");
+            }
+            if (sistema.HipotecasAtivas)
+            {
+                Console.WriteLine("  H               → Abre o menu de hipotecas");
+            }
+            
             Console.WriteLine("  PROPS           → Vê as suas propriedades");
             Console.WriteLine("  EPT             → Propõe um empate aos outros jogadores");
             Console.WriteLine("  DS              → Desistir do jogo (perde)");

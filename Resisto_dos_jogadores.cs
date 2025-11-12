@@ -36,7 +36,7 @@ namespace Resisto_dos_jogadores
                 Nome = nome; Jogos = 0; Vitorias = 0; Empates = 0; Derrotas = 0;
                 PosicaoX = 0; 
                 PosicaoY = 0; 
-                Dinheiro = 600; 
+                Dinheiro = 1500; 
                 JaLancouDadosTurno = false; 
                 EstaEmJogo = true; 
                 EstaPreso = false; 
@@ -149,7 +149,10 @@ namespace Resisto_dos_jogadores
         private int indiceJogadorAtual = 0;
         private bool jogadorJaLancouDadosEsteTurno = false;
         
+        // Opções de Jogo
         private bool leiloesAtivos = true; 
+        private bool hipotecasAtivas = true;
+        private bool vendaCasasAtiva = true;
         
         public bool JogoIniciado => jogoIniciado;
         public int ContagemJogadores => jogadores.Count;
@@ -160,6 +163,9 @@ namespace Resisto_dos_jogadores
                                       : null;
         
         public bool LeiloesAtivos => leiloesAtivos;
+        public bool HipotecasAtivas => hipotecasAtivas;
+        public bool VendaCasasAtiva => vendaCasasAtiva;
+        
         public int ContagemJogadoresAtivos => jogadores.Count(j => j.EstaEmJogo);
         
         public IReadOnlyDictionary<string, EspacoComercial> Espacos => espacosComerciais;
@@ -267,6 +273,18 @@ namespace Resisto_dos_jogadores
                     MenuComprarCasas();
                     break;
                 
+                case "VC":
+                    if (!jogoIniciado) { /*...*/ return false; }
+                    if (partes.Length != 1) { MostrarInstrucaoInvalida(); return false; }
+                    MenuVenderCasas();
+                    break;
+                
+                case "H":
+                    if (!jogoIniciado) { /*...*/ return false; }
+                    if (partes.Length != 1) { MostrarInstrucaoInvalida(); return false; }
+                    MenuHipoteca();
+                    break;
+
                 case "EPT":
                     if (!jogoIniciado) { /*...*/ return false; }
                     if (partes.Length != 1) { MostrarInstrucaoInvalida(); return false; }
@@ -357,12 +375,10 @@ namespace Resisto_dos_jogadores
             
             var jogador = JogadorAtual; 
             
-            // Lógica de Prisão
             if (jogador.EstaPreso)
             {
                 TentarSairDaPrisao(jogador);
             }
-            // Lógica Normal
             else
             {
                 Console.WriteLine($"\n--- Turno de {jogador.Nome} (Lançamento) ---");
@@ -600,9 +616,18 @@ namespace Resisto_dos_jogadores
                     Console.WriteLine($"\n  Grupo: {grupo.Key}");
                     foreach (var p in grupo)
                     {
-                        string nivel = (p.NivelCasa > 0) ? $"(Nível {p.NivelCasa})" : "(sem casas)";
-                        string precoCasaStr = (p.Cor != null) ? $" (Casa: ${p.PrecoCasa})" : ""; 
-                        Console.WriteLine($"    - [{p.Nome}] {nivel}{precoCasaStr}");
+                        string status;
+                        if (p.Hipotecado)
+                        {
+                            status = "(HIPOTECADO)";
+                        }
+                        else
+                        {
+                            status = (p.NivelCasa > 0) ? $"(Nível {p.NivelCasa})" : "(sem casas)";
+                        }
+                        
+                        string precoCasaStr = (p.Cor != null && !p.Hipotecado) ? $" (Casa: ${p.PrecoCasa})" : ""; 
+                        Console.WriteLine($"    - [{p.Nome}] {status}{precoCasaStr}");
                     }
                 }
             }
@@ -767,6 +792,7 @@ namespace Resisto_dos_jogadores
             {
                 espaco.Dono = null;
                 espaco.NivelCasa = 0;
+                espaco.Hipotecado = false;
             }
         }
 
@@ -883,6 +909,7 @@ namespace Resisto_dos_jogadores
             {
                 espaco.Dono = null;
                 espaco.NivelCasa = 0;
+                espaco.Hipotecado = false;
             }
             
             Console.WriteLine("Tabuleiro reiniciado.");
@@ -904,25 +931,282 @@ namespace Resisto_dos_jogadores
             Console.WriteLine($"  {jogador.Nome} moveu-se para ({jogador.PosicaoX}, {jogador.PosicaoY}) [{nomeCasa}]");
         }
         
-        // ==================================================================
-        // <-- MUDANÇA AQUI: Novo menu EF e AlternarLeiloes simplificado -->
-        // ==================================================================
+        // --- NOVOS MÉTODOS: Vender Casas e Hipotecar ---
+
+        private void MenuVenderCasas()
+        {
+            if (!vendaCasasAtiva)
+            {
+                Console.WriteLine("Erro: A funcionalidade 'Vender Casas' está desligada.");
+                Console.Write("Pressione Enter para continuar...");
+                Console.ReadLine();
+                return;
+            }
+
+            var jogador = JogadorAtual;
+            while (true)
+            {
+                Console.Clear();
+                Console.WriteLine($"--- Menu de Venda de Casas ({jogador.Nome} | Saldo: ${jogador.Dinheiro}) ---");
+                
+                var elegiveis = new List<EspacoComercial>();
+                var minhasProps = ObterPropriedadesDoJogador(jogador).Where(p => !string.IsNullOrEmpty(p.Cor));
+
+                foreach (var prop in minhasProps)
+                {
+                    if (prop.NivelCasa == 0) continue; 
+                    
+                    var nomesPropsDoGrupo = EspacoComercial.ObterPropriedadesDoGrupo(prop.Cor);
+                    int nivelMaximoNoGrupo = 0;
+                    foreach(string nomePropIrma in nomesPropsDoGrupo)
+                    {
+                        int nivelIrma = espacosComerciais[nomePropIrma].NivelCasa;
+                        if (nivelIrma > nivelMaximoNoGrupo) nivelMaximoNoGrupo = nivelIrma;
+                    }
+
+                    if (prop.NivelCasa == nivelMaximoNoGrupo)
+                    {
+                        elegiveis.Add(prop);
+                    }
+                }
+
+                if (elegiveis.Count == 0)
+                {
+                    Console.WriteLine("\n  Nenhuma propriedade elegível para vender casas.");
+                    Console.WriteLine("  (Lembre-se: deve vender uniformemente,");
+                    Console.WriteLine("  começando pela propriedade com mais casas no grupo.)");
+                }
+                else
+                {
+                    Console.WriteLine("\n  Propriedades elegíveis para vender casas:");
+                    foreach (var prop in elegiveis.OrderByDescending(p => p.NivelCasa).ThenBy(p => p.Cor))
+                    {
+                        int valorVenda = prop.PrecoCasa / 2;
+                        Console.WriteLine($"  - [{prop.Nome}] ({prop.Cor}) | Nível: {prop.NivelCasa} | Recebe: ${valorVenda}");
+                    }
+                }
+
+                Console.WriteLine("\n  Digite o nome da propriedade para vender (ex: Brown1)");
+                Console.WriteLine("  Ou digite 'SAIR' para voltar ao jogo.");
+                Console.Write("  > ");
+                string input = (Console.ReadLine() ?? "").Trim();
+
+                if (input.Equals("SAIR", StringComparison.OrdinalIgnoreCase)) break;
+                if (string.IsNullOrWhiteSpace(input)) continue; 
+                
+                VenderCasa(input);
+            }
+        }
+
+        private void VenderCasa(string nomePropriedade)
+        {
+            var jogador = JogadorAtual;
+            if (!espacosComerciais.TryGetValue(nomePropriedade, out var espaco))
+            {
+                Console.WriteLine($"Erro: Propriedade '{nomePropriedade}' não encontrada.");
+            }
+            else if (espaco.Dono != jogador)
+            {
+                Console.WriteLine($"Erro: Você não é o dono de [{espaco.Nome}].");
+            }
+            else if (espaco.NivelCasa == 0)
+            {
+                Console.WriteLine($"Erro: [{espaco.Nome}] não tem casas para vender.");
+            }
+            else
+            {
+                var nomesPropsDoGrupo = EspacoComercial.ObterPropriedadesDoGrupo(espaco.Cor);
+                int nivelMaximoNoGrupo = 0;
+                foreach(string nomePropIrma in nomesPropsDoGrupo)
+                {
+                    int nivelIrma = espacosComerciais[nomePropIrma].NivelCasa;
+                    if (nivelIrma > nivelMaximoNoGrupo) nivelMaximoNoGrupo = nivelIrma;
+                }
+
+                if (espaco.NivelCasa < nivelMaximoNoGrupo)
+                {
+                    Console.WriteLine($"Erro: Deve vender uniformemente. Venda primeiro de outra propriedade do grupo '{espaco.Cor}'.");
+                }
+                else
+                {
+                    int valorVenda = espaco.PrecoCasa / 2;
+                    jogador.Dinheiro += valorVenda;
+                    espaco.NivelCasa--;
+                    Console.WriteLine($"Casa vendida de [{espaco.Nome}] por ${valorVenda}.");
+                    Console.WriteLine($"Novo Nível: {espaco.NivelCasa}. Saldo atual: ${jogador.Dinheiro}.");
+                }
+            }
+            
+            Console.Write("\nPressione Enter para continuar...");
+            Console.ReadLine();
+        }
+
+        private void MenuHipoteca()
+        {
+            if (!hipotecasAtivas)
+            {
+                Console.WriteLine("Erro: A funcionalidade 'Hipotecas' está desligada.");
+                Console.Write("Pressione Enter para continuar...");
+                Console.ReadLine();
+                return;
+            }
+
+            var jogador = JogadorAtual;
+            while (true)
+            {
+                Console.Clear();
+                Console.WriteLine($"--- Menu de Gestão de Hipotecas ({jogador.Nome} | Saldo: ${jogador.Dinheiro}) ---");
+
+                var minhasProps = ObterPropriedadesDoJogador(jogador).ToList();
+                
+                var elegiveisHipoteca = minhasProps.Where(p => !p.Hipotecado).ToList();
+                Console.WriteLine("\n  Propriedades para HIPOTECAR (H [Nome]):");
+                if (!elegiveisHipoteca.Any())
+                {
+                    Console.WriteLine("    (Nenhuma)");
+                }
+                foreach (var prop in elegiveisHipoteca)
+                {
+                    bool casasNoGrupo = false;
+                    if (!string.IsNullOrEmpty(prop.Cor))
+                    {
+                        var nomesPropsDoGrupo = EspacoComercial.ObterPropriedadesDoGrupo(prop.Cor);
+                        casasNoGrupo = nomesPropsDoGrupo.Any(nomeIrma => espacosComerciais[nomeIrma].NivelCasa > 0);
+                    }
+                    
+                    if (casasNoGrupo)
+                    {
+                        Console.WriteLine($"    - [{prop.Nome}] (Deve vender todas as casas deste grupo primeiro)");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"    - [{prop.Nome}] | Recebe: ${prop.ValorHipoteca}");
+                    }
+                }
+
+                var elegiveisResgate = minhasProps.Where(p => p.Hipotecado).ToList();
+                Console.WriteLine("\n  Propriedades para RESGATAR (R [Nome]):");
+                if (!elegiveisResgate.Any())
+                {
+                    Console.WriteLine("    (Nenhuma)");
+                }
+                foreach (var prop in elegiveisResgate)
+                {
+                    int valorResgate = (int)(prop.ValorHipoteca * 1.10); // Valor + 10% juros
+                    Console.WriteLine($"    - [{prop.Nome}] | Custo: ${valorResgate}");
+                }
+
+                Console.WriteLine("\n  Use 'H Nome', 'R Nome' ou 'SAIR'.");
+                Console.Write("  > ");
+                string input = (Console.ReadLine() ?? "").Trim();
+                
+                if (input.Equals("SAIR", StringComparison.OrdinalIgnoreCase)) break;
+
+                string[] partes = input.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+                if (partes.Length != 2)
+                {
+                    Console.WriteLine("  Comando inválido. Use 'H NomeDaProp' ou 'R NomeDaProp'.");
+                }
+                else
+                {
+                    string comando = partes[0].ToUpper();
+                    string nomeProp = partes[1];
+                    if (comando == "H") HipotecarPropriedade(nomeProp);
+                    else if (comando == "R") ResgatarHipoteca(nomeProp);
+                    else Console.WriteLine("  Comando inválido. Use 'H' ou 'R'.");
+                }
+                
+                if (!input.Equals("SAIR", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.Write("\nPressione Enter para continuar...");
+                    Console.ReadLine();
+                }
+            }
+        }
+
+        private void HipotecarPropriedade(string nomePropriedade)
+        {
+            var jogador = JogadorAtual;
+            if (!espacosComerciais.TryGetValue(nomePropriedade, out var espaco))
+            {
+                Console.WriteLine($"Erro: Propriedade '{nomePropriedade}' não encontrada.");
+                return;
+            }
+            if (espaco.Dono != jogador)
+            {
+                Console.WriteLine($"Erro: Você não é o dono de [{espaco.Nome}].");
+                return;
+            }
+            if (espaco.Hipotecado)
+            {
+                Console.WriteLine($"Erro: [{espaco.Nome}] já está hipotecado.");
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(espaco.Cor))
+            {
+                var nomesPropsDoGrupo = EspacoComercial.ObterPropriedadesDoGrupo(espaco.Cor);
+                if (nomesPropsDoGrupo.Any(nomeIrma => espacosComerciais[nomeIrma].NivelCasa > 0))
+                {
+                    Console.WriteLine($"Erro: Deve vender todas as casas do grupo '{espaco.Cor}' antes de hipotecar.");
+                    return;
+                }
+            }
+            
+            jogador.Dinheiro += espaco.ValorHipoteca;
+            espaco.Hipotecado = true;
+            Console.WriteLine($"Propriedade [{espaco.Nome}] hipotecada. Você recebeu ${espaco.ValorHipoteca}.");
+            Console.WriteLine($"Novo Saldo: ${jogador.Dinheiro}");
+        }
+
+        private void ResgatarHipoteca(string nomePropriedade)
+        {
+            var jogador = JogadorAtual;
+            if (!espacosComerciais.TryGetValue(nomePropriedade, out var espaco))
+            {
+                Console.WriteLine($"Erro: Propriedade '{nomePropriedade}' não encontrada.");
+                return;
+            }
+            if (espaco.Dono != jogador)
+            {
+                Console.WriteLine($"Erro: Você não é o dono de [{espaco.Nome}].");
+                return;
+            }
+            if (!espaco.Hipotecado)
+            {
+                Console.WriteLine($"Erro: [{espaco.Nome}] não está hipotecado.");
+                return;
+            }
+
+            int valorResgate = (int)(espaco.ValorHipoteca * 1.10);
+            
+            Console.WriteLine($"Resgatar [{espaco.Nome}] custará ${valorResgate}.");
+            if (TentarPagar(jogador, valorResgate, "resgate de hipoteca"))
+            {
+                espaco.Hipotecado = false;
+                Console.WriteLine($"Propriedade [{espaco.Nome}] resgatada!");
+                Console.WriteLine($"Novo Saldo: ${jogador.Dinheiro}");
+            }
+        }
+
+
+        // --- MÉTODOS DE OPÇÕES DE JOGO (EF) ---
         
-        /// <summary>
-        /// Mostra o menu de Funcionalidades Extras (antes do jogo começar).
-        /// </summary>
         private void MenuFuncionalidadesExtras()
         {
             while (true)
             {
                 Console.Clear();
-                Console.WriteLine("--- Funcionalidades Extras ---");
+                Console.WriteLine("--- Funcionalidades Extras (Opções de Jogo) ---");
                 
-                // 1. Opção de Leilões
                 string estadoLeilao = leiloesAtivos ? "LIGADO" : "DESLIGADO";
-                Console.WriteLine($"  1. Leilões   (Estado: {estadoLeilao})");
+                Console.WriteLine($"  1. Leilões         (Estado: {estadoLeilao})");
                 
-                // (Pode adicionar "2. Outra Opção" aqui no futuro)
+                string estadoVenda = vendaCasasAtiva ? "LIGADA" : "DESLIGADA";
+                Console.WriteLine($"  2. Venda de Casas  (Estado: {estadoVenda})");
+                
+                string estadoHipoteca = hipotecasAtivas ? "LIGADA" : "DESLIGADA";
+                Console.WriteLine($"  3. Hipotecas       (Estado: {estadoHipoteca})");
 
                 Console.WriteLine("\n  Digite o número da opção para a alterar.");
                 Console.WriteLine("  Digite 'SAIR' para voltar.");
@@ -931,13 +1215,19 @@ namespace Resisto_dos_jogadores
 
                 if (input.Equals("SAIR", StringComparison.OrdinalIgnoreCase))
                 {
-                    break; // Sai do menu
+                    break; 
                 }
 
                 switch (input)
                 {
                     case "1":
-                        AlternarLeiloes(); // Chama o método simplificado
+                        leiloesAtivos = !leiloesAtivos;
+                        break;
+                    case "2":
+                        vendaCasasAtiva = !vendaCasasAtiva;
+                        break;
+                    case "3":
+                        hipotecasAtivas = !hipotecasAtivas;
                         break;
                     default:
                         Console.WriteLine("  Opção inválida. Pressione Enter para tentar novamente...");
@@ -945,14 +1235,6 @@ namespace Resisto_dos_jogadores
                         break;
                 }
             }
-        }
-        
-        /// <summary>
-        /// Alterna o estado da opção de leilões.
-        /// </summary>
-        private void AlternarLeiloes()
-        {
-            leiloesAtivos = !leiloesAtivos; // Apenas inverte o valor
         }
         
         private void MostrarInstrucaoInvalida()
