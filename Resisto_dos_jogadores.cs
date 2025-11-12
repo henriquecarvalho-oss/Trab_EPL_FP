@@ -36,7 +36,7 @@ namespace Resisto_dos_jogadores
                 Nome = nome; Jogos = 0; Vitorias = 0; Empates = 0; Derrotas = 0;
                 PosicaoX = 0; 
                 PosicaoY = 0; 
-                Dinheiro = 1500; 
+                Dinheiro = 600; 
                 JaLancouDadosTurno = false; 
                 EstaEmJogo = true; 
                 EstaPreso = false; 
@@ -149,6 +149,8 @@ namespace Resisto_dos_jogadores
         private int indiceJogadorAtual = 0;
         private bool jogadorJaLancouDadosEsteTurno = false;
         
+        private bool leiloesAtivos = true; 
+        
         public bool JogoIniciado => jogoIniciado;
         public int ContagemJogadores => jogadores.Count;
         public int DinheiroFreePark => dinheiroFreePark;
@@ -156,6 +158,9 @@ namespace Resisto_dos_jogadores
         public Jogador JogadorAtual => (jogoIniciado && jogadores.Any() && jogadores[indiceJogadorAtual].EstaEmJogo) 
                                       ? jogadores[indiceJogadorAtual] 
                                       : null;
+        
+        public bool LeiloesAtivos => leiloesAtivos;
+        public int ContagemJogadoresAtivos => jogadores.Count(j => j.EstaEmJogo);
         
         public IReadOnlyDictionary<string, EspacoComercial> Espacos => espacosComerciais;
 
@@ -210,7 +215,7 @@ namespace Resisto_dos_jogadores
             if (partes.Length == 0) { MostrarInstrucaoInvalida(); return false; }
             string instrucao = partes[0].ToUpper(); 
 
-            if (!jogoIniciado && instrucao != "IJ" && instrucao != "RJ" && instrucao != "Q" && instrucao != "LS")
+            if (!jogoIniciado && instrucao != "IJ" && instrucao != "RJ" && instrucao != "Q" && instrucao != "LS" && instrucao != "EF")
             {
                 if (instrucao != "CC" && instrucao != "PROPS")
                 {
@@ -288,6 +293,18 @@ namespace Resisto_dos_jogadores
                     ListarEstatisticas();
                     break;
 
+                case "EF":
+                    if (jogoIniciado)
+                    {
+                        Console.WriteLine("Erro: Não pode alterar esta opção depois do jogo começar.");
+                        Console.Write("Pressione Enter para continuar...");
+                        Console.ReadLine();
+                        return false;
+                    }
+                    if (partes.Length != 1) { MostrarInstrucaoInvalida(); return false; }
+                    MenuFuncionalidadesExtras();
+                    break;
+
                 default:
                     MostrarInstrucaoInvalida();
                     return false;
@@ -298,8 +315,14 @@ namespace Resisto_dos_jogadores
         // --- Métodos de Lógica do Jogo ---
         private void IniciarJogo() 
         {
-            if (jogoIniciado) { /*...*/ return; }
-            if (jogadores.Count < 2) { /*...*/ return; }
+            if (jogoIniciado) { return; }
+            if (jogadores.Count < 2) 
+            {
+                Console.WriteLine("Erro: São necessários pelo menos 2 jogadores para iniciar.");
+                Console.Write("Pressione Enter para continuar...");
+                Console.ReadLine();
+                return; 
+            }
             
             foreach(var j in jogadores) { j.EstaEmJogo = true; }
             
@@ -312,7 +335,13 @@ namespace Resisto_dos_jogadores
         }
         private void RegistarJogador(string nome) 
         {
-            if (jogadores.Any(j => j.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))) { /*...*/ return; }
+            if (jogadores.Any(j => j.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase))) 
+            {
+                Console.WriteLine("Erro: Já existe um jogador com esse nome.");
+                Console.Write("Pressione Enter para continuar...");
+                Console.ReadLine();
+                return; 
+            }
             jogadores.Add(new Jogador(nome));
         }
 
@@ -444,9 +473,6 @@ namespace Resisto_dos_jogadores
                 return;
             }
             
-            // ==================================================================================
-            // <-- MUDANÇA AQUI: A chamada errada "sistema." foi removida. -->
-            // ==================================================================================
             if (TentarPagar(jogador, precoCasa, "compra de casa"))
             {
                 espaco.NivelCasa++;
@@ -454,7 +480,6 @@ namespace Resisto_dos_jogadores
                 Console.WriteLine($"Novo Nível: {espaco.NivelCasa} (Custo: ${precoCasa})");
                 Console.WriteLine($"Saldo restante: ${jogador.Dinheiro}");
             }
-            // Se falhar, TentarPagar trata da bancarrota
 
             Console.Write("Pressione Enter para continuar...");
             Console.ReadLine();
@@ -464,16 +489,16 @@ namespace Resisto_dos_jogadores
         {
             if (string.IsNullOrEmpty(cor)) { return false; }
             var propriedadesDoGrupo = EspacoComercial.ObterPropriedadesDoGrupo(cor);
-            if (propriedadesDoGrupo == null) return false; // Se não for um grupo de cor
+            if (propriedadesDoGrupo == null) return false; 
             
             foreach (string nomeProp in propriedadesDoGrupo)
             {
                 if (espacosComerciais[nomeProp].Dono != jogador)
                 {
-                    return false; // Falta uma propriedade
+                    return false; 
                 }
             }
-            return true; // Tem todas
+            return true; 
         }
         
         private void MenuComprarCasas()
@@ -877,6 +902,57 @@ namespace Resisto_dos_jogadores
             jogador.PosicaoX = newCol_Matriz - CentroTabuleiro;
             
             Console.WriteLine($"  {jogador.Nome} moveu-se para ({jogador.PosicaoX}, {jogador.PosicaoY}) [{nomeCasa}]");
+        }
+        
+        // ==================================================================
+        // <-- MUDANÇA AQUI: Novo menu EF e AlternarLeiloes simplificado -->
+        // ==================================================================
+        
+        /// <summary>
+        /// Mostra o menu de Funcionalidades Extras (antes do jogo começar).
+        /// </summary>
+        private void MenuFuncionalidadesExtras()
+        {
+            while (true)
+            {
+                Console.Clear();
+                Console.WriteLine("--- Funcionalidades Extras ---");
+                
+                // 1. Opção de Leilões
+                string estadoLeilao = leiloesAtivos ? "LIGADO" : "DESLIGADO";
+                Console.WriteLine($"  1. Leilões   (Estado: {estadoLeilao})");
+                
+                // (Pode adicionar "2. Outra Opção" aqui no futuro)
+
+                Console.WriteLine("\n  Digite o número da opção para a alterar.");
+                Console.WriteLine("  Digite 'SAIR' para voltar.");
+                Console.Write("  > ");
+                string input = (Console.ReadLine() ?? "").Trim();
+
+                if (input.Equals("SAIR", StringComparison.OrdinalIgnoreCase))
+                {
+                    break; // Sai do menu
+                }
+
+                switch (input)
+                {
+                    case "1":
+                        AlternarLeiloes(); // Chama o método simplificado
+                        break;
+                    default:
+                        Console.WriteLine("  Opção inválida. Pressione Enter para tentar novamente...");
+                        Console.ReadLine();
+                        break;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Alterna o estado da opção de leilões.
+        /// </summary>
+        private void AlternarLeiloes()
+        {
+            leiloesAtivos = !leiloesAtivos; // Apenas inverte o valor
         }
         
         private void MostrarInstrucaoInvalida()

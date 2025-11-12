@@ -15,13 +15,8 @@ namespace MonopolyGameLogic
 
     public class EspacoComercial
     {
-        // ==================================================================
-        // --- DICIONÁRIOS ESTÁTICOS (COM DADOS) ---
-        // ==================================================================
-        
         private static readonly Dictionary<string, int> PrecosBase = new()
         {
-            // (Lista completa de preços)
             { "Brown1", 100 }, { "Brown2", 120 }, { "Teal1", 90 }, { "Teal2", 130 },
             { "Orange1", 120 }, { "Orange2", 120 }, { "Orange3", 140 },
             { "Black1", 110 }, { "Black2", 120 }, { "Black3", 130 },
@@ -54,9 +49,9 @@ namespace MonopolyGameLogic
         public string Nome { get; }
         public int Preco { get; } 
         public SistemaJogo.Jogador Dono { get; set; }
-        public int NivelCasa { get; set; } // Nível 0 = sem casas, Nível 5 = Hotel
-        public int PrecoCasa { get; } // Preço para comprar UMA casa
-        public string Cor { get; } // A cor do grupo (ex: "Brown")
+        public int NivelCasa { get; set; }
+        public int PrecoCasa { get; } 
+        public string Cor { get; } 
         
         // Construtor
         public EspacoComercial(string nome, int preco)
@@ -64,16 +59,13 @@ namespace MonopolyGameLogic
             Nome = nome;
             Preco = preco; 
             Dono = null; 
-            NivelCasa = 0; // Começa sem casas
-            PrecoCasa = (int)(Preco * 0.6); // Preço da casa é 60% do preço base
-            Cor = ObterCorDaPropriedade(nome); // Encontra a cor
+            NivelCasa = 0; 
+            PrecoCasa = (int)(Preco * 0.6); 
+            Cor = ObterCorDaPropriedade(nome);
         }
         
         
-        // ==================================================================
-        // --- MÉTODOS ESTÁTICOS (OS QUE ESTAVAM VERMELHOS) ---
-        // ==================================================================
-        
+        // --- Métodos Estáticos ---
         public static bool EspacoEComercial(string nome)
         {
             return PrecosBase.ContainsKey(nome);
@@ -93,7 +85,7 @@ namespace MonopolyGameLogic
                     return par.Key; 
                 }
             }
-            return null; // Não é uma propriedade de cor (ex: Comboio, Elétrica)
+            return null; 
         }
         
         public static string[] ObterPropriedadesDoGrupo(string cor)
@@ -101,9 +93,8 @@ namespace MonopolyGameLogic
             return GruposDeCor.ContainsKey(cor) ? GruposDeCor[cor] : null;
         }
         
-        // ==================================================================
-        // --- MÉTODOS DE LÓGICA ---
-        // ==================================================================
+        
+        // --- Métodos de Lógica ---
         
         public ResultadoCompra TentarComprar(SistemaJogo.Jogador comprador)
         {
@@ -116,10 +107,8 @@ namespace MonopolyGameLogic
         
         public void AterrarNoEspaco(SistemaJogo.Jogador jogador, SistemaJogo sistema)
         {
-            // 1. Verificar se tem dono
             if (this.Dono == null)
             {
-                // Lógica de compra/leilão
                 if (jogador.Dinheiro >= this.Preco)
                 {
                     string resposta = ""; 
@@ -148,7 +137,7 @@ namespace MonopolyGameLogic
                     ExecutarLogicaDeRecusa(jogador, sistema);
                 }
             }
-            else // Espaço já tem dono
+            else 
             {
                 if (this.Dono == jogador)
                 {
@@ -156,18 +145,15 @@ namespace MonopolyGameLogic
                 }
                 else
                 {
-                    // É de outro jogador! Pagar Renda!
                     PagarRenda(jogador, this.Dono, sistema);
                 }
             }
-            // Pausa no final da jogada (sempre acontece)
             Console.Write("  Pressione Enter para continuar...");
             Console.ReadLine();
         }
         
         private void PagarRenda(SistemaJogo.Jogador inquilino, SistemaJogo.Jogador proprietario, SistemaJogo sistema)
         {
-            // Calcula a renda usando a fórmula
             double rendaBase = this.Preco * 0.25;
             double rendaCasas = this.Preco * 0.75 * this.NivelCasa;
             int valorRenda = (int)(rendaBase + rendaCasas); 
@@ -183,37 +169,45 @@ namespace MonopolyGameLogic
                 Console.WriteLine($"  A renda base é de ${valorRenda}.");
             }
 
-            // Usa o TentarPagar para processar a bancarrota se necessário
             if (sistema.TentarPagar(inquilino, valorRenda, $"renda a {proprietario.Nome}"))
             {
-                // Se o pagamento foi bem-sucedido:
                 proprietario.Dinheiro += valorRenda;
                 Console.WriteLine($"  Você pagou ${valorRenda}. O seu saldo é ${inquilino.Dinheiro}.");
                 Console.WriteLine($"  {proprietario.Nome} recebeu ${valorRenda}. O saldo dele é ${proprietario.Dinheiro}.");
             }
-            // Se falhou, o TentarPagar já tratou da bancarrota.
         }
         
-        // ==================================================================
-        // --- MÉTODOS DE LEILÃO/RECUSA (SEM ALTERAÇÕES) ---
-        // ==================================================================
         
         private void ExecutarLogicaDeRecusa(SistemaJogo.Jogador jogadorQueRecusou, SistemaJogo sistema)
         {
-            var outrosJogadores = sistema.ObterOutrosJogadores(jogadorQueRecusou);
-            int totalJogadoresNoJogo = outrosJogadores.Count + 1; // +1 para incluir o próprio jogador
-            
-            if (totalJogadoresNoJogo == 2)
+            var outrosJogadores = sistema.ObterOutrosJogadores(jogadorQueRecusou); 
+            int totalJogadoresAtivos = sistema.ContagemJogadoresAtivos; 
+
+            if (totalJogadoresAtivos == 2)
             {
-                var outroJogador = outrosJogadores[0]; 
-                if (outroJogador.Dinheiro >= this.Preco) { OferecerPropriedade(outroJogador); }
-                else { Console.WriteLine($"  {outroJogador.Nome} não tem dinheiro (${this.Preco}) para comprar. A propriedade continua sem dono."); }
+                var outroJogador = outrosJogadores.FirstOrDefault(); 
+                if (outroJogador != null)
+                {
+                    if (outroJogador.Dinheiro >= this.Preco) { OferecerPropriedade(outroJogador); }
+                    else { Console.WriteLine($"  {outroJogador.Nome} não tem dinheiro (${this.Preco}) para comprar. A propriedade continua sem dono."); }
+                }
             }
-            else if (totalJogadoresNoJogo > 2)
+            else if (totalJogadoresAtivos > 2 && sistema.LeiloesAtivos)
             {
                 var jogadoresElegiveis = outrosJogadores.Where(j => j.Dinheiro > 0).ToList();
-                if (jogadoresElegiveis.Count > 0) { IniciarLeilao(jogadoresElegiveis); }
+                
+                // ==================================================================================
+                // <-- MUDANÇA AQUI: Passar "sistema" para o IniciarLeilao -->
+                // ==================================================================================
+                if (jogadoresElegiveis.Count > 0) { IniciarLeilao(jogadoresElegiveis, sistema); }
                 else { Console.WriteLine("  Nenhum outro jogador tem dinheiro para o leilão. A propriedade continua sem dono."); }
+            }
+            else
+            {
+                if (totalJogadoresAtivos > 2)
+                {
+                    Console.WriteLine("  Leilões estão desligados. A propriedade continua sem dono.");
+                }
             }
         }
 
@@ -239,7 +233,10 @@ namespace MonopolyGameLogic
             else { Console.WriteLine($"  {compradorPotencial.Nome} recusou. A propriedade continua sem dono."); }
         }
 
-        private void IniciarLeilao(List<SistemaJogo.Jogador> licitantes)
+        // ==================================================================================
+        // <-- MUDANÇA AQUI: "IniciarLeilao" agora recebe "SistemaJogo sistema" -->
+        // ==================================================================================
+        private void IniciarLeilao(List<SistemaJogo.Jogador> licitantes, SistemaJogo sistema)
         {
             Console.WriteLine($"\n--- LEILÃO INICIADO PARA: {this.Nome} ---");
             Console.WriteLine("Licitantes: " + string.Join(", ", licitantes.Select(j => j.Nome)));
@@ -294,9 +291,15 @@ namespace MonopolyGameLogic
                 vencedor = maiorLicitante; 
                 Console.WriteLine($"--- LEILÃO ENCERRADO ---");
                 Console.WriteLine($"  Vendido a {vencedor.Nome} por ${licitacaoAtual}!");
-                vencedor.Dinheiro -= licitacaoAtual;
-                this.Dono = vencedor;
-                Console.WriteLine($"  O novo saldo de {vencedor.Nome} é ${vencedor.Dinheiro}.");
+                
+                // ==================================================================================
+                // <-- MUDANÇA AQUI: Esta linha agora está correta -->
+                // ==================================================================================
+                if (sistema.TentarPagar(vencedor, licitacaoAtual, "leilão"))
+                {
+                    this.Dono = vencedor;
+                    Console.WriteLine($"  O novo saldo de {vencedor.Nome} é ${vencedor.Dinheiro}.");
+                }
             }
             else { Console.WriteLine($"--- LEILÃO ENCERRADO ---"); Console.WriteLine("  Todos desistiram (ou ninguém era elegível). A propriedade continua sem dono."); }
         }

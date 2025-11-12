@@ -1,5 +1,8 @@
 // Nome do Ficheiro: MonopolyBoard.cs
 using System;
+using Resisto_dos_jogadores; // Referência aos Jogadores
+using System.Collections.Generic;
+using System.Linq;
 
 namespace MonopolyBoard
 {
@@ -7,38 +10,33 @@ namespace MonopolyBoard
     {
         private readonly string[,] spaces;
         private const int Size = 7;
-        
         private const int CellWidth = 13; 
+        private const int CentroTabuleiro = 3; // Offset para traduzir coordenadas
 
         public Board()
         {
             spaces = new string[Size, Size]
             {
                 // Col 0                 Col 1                Col 2                  Col 3                Col 4                Col 5                Col 6
-                // ====================================================================================================================================================
-                // <-- MUDANÇA AQUI: "Start" (0,0) revertido para "Prison" (como no original) -->
                 { "Prison",            "Green3",            "Violet1",             "Train2",            "Red3",              "White1",            "BackToStart" },  // Row 0
-                // ====================================================================================================================================================
                 { "Blue3",             "Community",         "Red2",                "Violet2",           "Water Works",       "Chance",            "White2" },       // Row 1
                 { "Blue2",             "Red1",              "Chance",              "Brown2",            "Community",         "Black1",            "Lux Tax" },      // Row 2
-                // ====================================================================================================================================================
-                // <-- MUDANÇA AQUI: "Prison" (3,3) revertido para "Start" (como no original) -->
                 { "Train1",            "Green2",            "Teal1",               "Start",             "Teal2",             "Black2",            "Train3" },       // Row 3
-                // ====================================================================================================================================================
                 { "Blue1",             "Green1",            "Community",           "Brown1",            "Chance",            "Black3",            "White3" },       // Row 4
                 { "Pink1",             "Chance",            "Orange1",             "Orange2",           "Orange3",           "Community",         "Yellow3" },      // Row 5
                 { "FreePark",          "Pink2",             "Electric Company",    "Train4",            "Yellow1",           "Yellow2",           "Police" }        // Row 6
             };
         }
 
-        public void Display()
+        public void Display(IEnumerable<SistemaJogo.Jogador> players)
         {
             Console.WriteLine("\t\t\t\t    === Tabuleiro de Monopólio 7x7 ===\n"); 
             DrawTopBorder();
 
             for (int i = 0; i < Size; i++)
             {
-                DrawRow(i);
+                // Passa os jogadores para o método DrawRow
+                DrawRow(i, players);
                 if (i < Size - 1)
                     DrawMiddleBorder();
             }
@@ -46,22 +44,15 @@ namespace MonopolyBoard
             DrawBottomBorder();
         }
         
-        /// <summary>
-        /// Obtém o nome da casa usando as coordenadas da MATRIZ (0-6).
-        /// </summary>
-        public string GetSpaceName(int arrayRow, int arrayCol)
+        public string GetSpaceName(int row, int col)
         {
-            if (arrayRow >= 0 && arrayRow < Size && arrayCol >= 0 && arrayCol < Size)
+            if (row >= 0 && row < Size && col >= 0 && col < Size)
             {
-                return spaces[arrayRow, arrayCol];
+                return spaces[row, col];
             }
             return "Fora do Tabuleiro";
         }
 
-        /// <summary>
-        /// Encontra as coordenadas da MATRIZ (Linha, Coluna) de um espaço pelo seu nome.
-        /// </summary>
-        /// <returns>Um Tuple<int, int> (Item1 = Linha 0-6, Item2 = Coluna 0-6).</returns>
         public Tuple<int, int> GetSpaceCoords(string name)
         {
             for (int r = 0; r < Size; r++)
@@ -75,16 +66,12 @@ namespace MonopolyBoard
                 }
             }
             
-            // Se não encontrar, devolve "Start" por segurança
             Console.WriteLine($"AVISO: Casa '{name}' não encontrada no tabuleiro!");
-            // ==================================================================================
-            // <-- MUDANÇA AQUI: O "Start" de segurança agora é (3, 3) -->
             return new Tuple<int, int>(3, 3); // Posição (3, 3) = Start
-            // ==================================================================================
         }
 
 
-        // --- Métodos de Desenho (Ficam iguais) ---
+        // --- Métodos de Desenho (Atualizados) ---
         private void DrawTopBorder()
         {
             Console.Write("┌");
@@ -118,15 +105,51 @@ namespace MonopolyBoard
             Console.WriteLine("┘");
         }
 
-        private void DrawRow(int row)
+        // <-- MUDANÇA AQUI: DrawRow() agora desenha DUAS linhas por célula -->
+        private void DrawRow(int row, IEnumerable<SistemaJogo.Jogador> players)
         {
+            // --- Linha 1: Nome da Casa ---
             Console.Write("│");
-            for (int j = 0; j < Size; j++)
+            for (int j = 0; j < Size; j++) // j = coluna
             {
-                string text = CenterText(spaces[row, j], CellWidth);
-                Console.Write($"{text}│");
+                string spaceName = spaces[row, j];
+                string centeredName = CenterText(spaceName, CellWidth);
+                Console.Write($"{centeredName}│");
             }
-            Console.WriteLine();
+            Console.WriteLine(); // Fim da linha 1
+
+            // --- Linha 2: Marcadores dos Jogadores ---
+            Console.Write("│");
+            for (int j = 0; j < Size; j++) // j = coluna
+            {
+                // 1. Encontrar jogadores que estão nesta casa
+                var playersOnThisSpace = players
+                    .Where(p => p.EstaEmJogo && 
+                                (p.PosicaoY + CentroTabuleiro) == row && 
+                                (p.PosicaoX + CentroTabuleiro) == j)
+                    .ToList();
+
+                string markerText = " "; // Default: um espaço vazio
+                
+                if (playersOnThisSpace.Any())
+                {
+                    // 2. Se há jogadores, criar a string de marcadores (iniciais)
+                    string playerMarkers = "";
+                    foreach (var p in playersOnThisSpace)
+                    {
+                        if (!string.IsNullOrEmpty(p.Nome))
+                        {
+                            playerMarkers += p.Nome[0]; // Adiciona a primeira letra
+                        }
+                    }
+                    markerText = playerMarkers;
+                }
+                
+                // 3. Centrar os marcadores
+                string centeredMarkers = CenterText(markerText, CellWidth);
+                Console.Write($"{centeredMarkers}│");
+            }
+            Console.WriteLine(); // Fim da linha 2
         }
 
         private string CenterText(string text, int width)
@@ -134,7 +157,7 @@ namespace MonopolyBoard
             text = text.Trim();
             if (text.Length > width)
             {
-                return text.Substring(0, width - 1) + "."; 
+                return text.Substring(0, width); // Corta se for demasiado longo
             }
             if (text.Length == width)
             {
