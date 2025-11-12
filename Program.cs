@@ -1,5 +1,4 @@
-﻿// Nome do Ficheiro: Program.cs
-using System;
+﻿using System;
 using System.Linq; 
 using MonopolyBoard;
 using MonopolyGameLogic; 

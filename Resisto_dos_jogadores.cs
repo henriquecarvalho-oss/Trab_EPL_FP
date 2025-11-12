@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MonopolyGameLogic; 
+using MonopolyGameLogic; // Para CardDecks
 using MonopolyBoard; 
 
 namespace Resisto_dos_jogadores
@@ -10,7 +10,7 @@ namespace Resisto_dos_jogadores
     public class SistemaJogo
     {
         // ==================================================================
-        // === CLASSE INTERNA JOGADOR (Fica igual) ==========================
+        // === CLASSE INTERNA JOGADOR =======================================
         // ==================================================================
         public class Jogador
         {
@@ -50,6 +50,7 @@ namespace Resisto_dos_jogadores
                 // 3. Verificar a ação do espaço
                 if (EspacoComercial.EspacoEComercial(nomeCasa))
                 {
+                    // (Esta função já tem a sua própria pausa)
                     var espaco = espacos[nomeCasa];
                     espaco.AterrarNoEspaco(this, sistema); 
                 }
@@ -80,6 +81,25 @@ namespace Resisto_dos_jogadores
                     Console.Write("  Pressione Enter para continuar...");
                     Console.ReadLine();
                 }
+                else if (nomeCasa.Equals("Chance", StringComparison.OrdinalIgnoreCase))
+                {
+                    // (Esta função já tem a sua própria pausa)
+                    CardDecks.DrawChanceCard(this, sistema, board);
+                }
+                else if (nomeCasa.Equals("Community", StringComparison.OrdinalIgnoreCase))
+                {
+                    // (Esta função já tem a sua própria pausa)
+                    CardDecks.DrawCommunityCard(this, sistema, board);
+                }
+                // <-- ESTA É A CORREÇÃO IMPORTANTE -->
+                else
+                {
+                    // Isto apanha "Start", "Prison", "Police", "BackToStart"
+                    // e qualquer outra casa não interativa.
+                    Console.WriteLine($"  Você aterrou em [{nomeCasa}].");
+                    Console.Write("  Pressione Enter para continuar...");
+                    Console.ReadLine(); // A PAUSA QUE FALTAVA
+                }
             }
         }
         // ==================================================================
@@ -87,7 +107,7 @@ namespace Resisto_dos_jogadores
         // ==================================================================
 
 
-        // --- Propriedades do SistemaJogo ---
+        // --- Propriedades do SistemaJogo (Ficam iguais) ---
         private readonly List<Jogador> jogadores = new();
         private readonly DiceRoller diceRoller = new(); 
         private readonly Board board; 
@@ -104,7 +124,7 @@ namespace Resisto_dos_jogadores
         public IReadOnlyDictionary<string, EspacoComercial> Espacos => espacosComerciais;
 
         
-        // --- Construtor e Métodos de Gestão ---
+        // --- Construtor e Métodos de Gestão (Ficam iguais) ---
         public SistemaJogo(Board board)
         {
             this.board = board;
@@ -144,7 +164,7 @@ namespace Resisto_dos_jogadores
                 .ThenBy(j => j.Nome);
         }
 
-        // --- Método Principal de Comandos ---
+        // --- Método Principal de Comandos (Fica igual) ---
         public bool ExecutarComando(string linha)
         {
             string linhaLimpa = linha.Trim();
@@ -155,7 +175,6 @@ namespace Resisto_dos_jogadores
 
             if (!jogoIniciado && instrucao != "IJ" && instrucao != "RJ" && instrucao != "Q" && instrucao != "LS")
             {
-                // (O comando 'CC' e 'PROPS' agora são permitidos antes do IJ)
                 if (instrucao != "CC" && instrucao != "PROPS")
                 {
                     Console.WriteLine("Erro: O jogo ainda não começou. Use 'RJ', 'IJ' ou 'LS'.");
@@ -183,15 +202,8 @@ namespace Resisto_dos_jogadores
                     LancarDados(); 
                     break;
                 
-                case "CC": // Comprar Casa
-                    if (partes.Length != 1) // Já não aceita "CC NomeProp"
-                    {
-                        Console.WriteLine("Erro: O comando é apenas 'CC' para abrir o menu de compra.");
-                        Console.Write("Pressione Enter para continuar...");
-                        Console.ReadLine();
-                        return false;
-                    }
-                    // Chama o novo método de sub-menu
+                case "CC":
+                    if (partes.Length != 1) { /*...*/ return false; }
                     MenuComprarCasas();
                     break;
 
@@ -201,7 +213,6 @@ namespace Resisto_dos_jogadores
                     EncerrarTurno();
                     break;
                 case "PROPS": 
-                    // (Removido o 'if (!jogoIniciado)')
                     if (partes.Length != 1) { MostrarInstrucaoInvalida(); return false; }
                     VerPropriedades();
                     break;
@@ -217,8 +228,7 @@ namespace Resisto_dos_jogadores
             return true;
         }
 
-        // --- Métodos de Lógica do Jogo ---
-
+        // --- Métodos de Lógica do Jogo (Ficam iguais) ---
         private void IniciarJogo() 
         {
             if (jogoIniciado) { /*...*/ return; }
@@ -267,15 +277,9 @@ namespace Resisto_dos_jogadores
             Console.Write("Pressione Enter para continuar...");
             Console.ReadLine();
         }
-
-        // Este é o método de compra que é chamado PELO sub-menu
         private void ComprarCasa(string nomePropriedade)
         {
-            // 1. A verificação 'jogadorJaLancouDadosEsteTurno' foi REMOVIDA
-            
             var jogador = JogadorAtual;
-            
-            // 1.1 Verifica se o jogo começou (não pode comprar se não houver jogador atual)
             if (!jogoIniciado)
             {
                 Console.WriteLine("Erro: O jogo ainda não começou. Registe jogadores (RJ) e inicie (IJ).");
@@ -283,8 +287,6 @@ namespace Resisto_dos_jogadores
                 Console.ReadLine();
                 return;
             }
-
-            // 2. Encontra a propriedade
             if (!espacosComerciais.TryGetValue(nomePropriedade, out var espaco))
             {
                 Console.WriteLine($"Erro: Propriedade '{nomePropriedade}' não encontrada.");
@@ -292,8 +294,6 @@ namespace Resisto_dos_jogadores
                 Console.ReadLine();
                 return;
             }
-
-            // 3. Verifica se o jogador é o dono
             if (espaco.Dono != jogador)
             {
                 Console.WriteLine($"Erro: Você não é o dono de [{espaco.Nome}].");
@@ -301,8 +301,6 @@ namespace Resisto_dos_jogadores
                 Console.ReadLine();
                 return;
             }
-
-            // 4. Verifica se tem o monopólio
             if (!VerificarMonopolio(jogador, espaco.Cor))
             {
                 Console.WriteLine($"Erro: Deve possuir todas as propriedades do grupo '{espaco.Cor}' para comprar casas.");
@@ -310,8 +308,6 @@ namespace Resisto_dos_jogadores
                 Console.ReadLine();
                 return;
             }
-            
-            // 5. Verifica CONSTRUÇÃO UNIFORME
             string corDoGrupo = espaco.Cor;
             int nivelAtualAlvo = espaco.NivelCasa; 
             var nomesPropsDoGrupo = EspacoComercial.ObterPropriedadesDoGrupo(corDoGrupo);
@@ -330,8 +326,6 @@ namespace Resisto_dos_jogadores
                     return; 
                 }
             }
-
-            // 6. Verifica o preço
             int precoCasa = espaco.PrecoCasa;
             if (jogador.Dinheiro < precoCasa)
             {
@@ -340,8 +334,6 @@ namespace Resisto_dos_jogadores
                 Console.ReadLine();
                 return;
             }
-
-            // 7. Verifica o limite de casas
             if (espaco.NivelCasa >= 5)
             {
                 Console.WriteLine($"Erro: [{espaco.Nome}] já atingiu o nível máximo (Hotel).");
@@ -349,18 +341,14 @@ namespace Resisto_dos_jogadores
                 Console.ReadLine();
                 return;
             }
-
-            // 8. Tudo certo! Executa a compra
             jogador.Dinheiro -= precoCasa;
             espaco.NivelCasa++;
-            
             Console.WriteLine($"Casa comprada para [{espaco.Nome}]!");
             Console.WriteLine($"Novo Nível: {espaco.NivelCasa} (Custo: ${precoCasa})");
             Console.WriteLine($"Saldo restante: ${jogador.Dinheiro}");
             Console.Write("Pressione Enter para continuar...");
             Console.ReadLine();
         }
-
         private bool VerificarMonopolio(Jogador jogador, string cor)
         {
             if (string.IsNullOrEmpty(cor)) { return false; }
@@ -374,11 +362,8 @@ namespace Resisto_dos_jogadores
             }
             return true; 
         }
-
-        // Este é o novo método que controla o SUB-MENU
         private void MenuComprarCasas()
         {
-            // 0. Verifica se o jogo começou
             if (!jogoIniciado)
             {
                 Console.WriteLine("Erro: O jogo ainda não começou. Registe jogadores (RJ) e inicie (IJ).");
@@ -386,30 +371,21 @@ namespace Resisto_dos_jogadores
                 Console.ReadLine();
                 return;
             }
-            
             var jogador = JogadorAtual;
-
-            // Este é o loop do "sub-menu"
             while (true)
             {
-                Console.Clear(); // Limpa o ecrã para mostrar o menu
-                
-                // 1. Obter a lista de propriedades elegíveis
+                Console.Clear(); 
                 var elegiveis = new List<EspacoComercial>();
                 var minhasPropriedades = espacosComerciais.Values.Where(p => p.Dono == jogador);
-
                 foreach (var prop in minhasPropriedades)
                 {
                     if (string.IsNullOrEmpty(prop.Cor)) continue;
                     if (!VerificarMonopolio(jogador, prop.Cor)) continue;
                     if (prop.NivelCasa >= 5) continue;
                     if (jogador.Dinheiro < prop.PrecoCasa) continue;
-
-                    // Regra de Construção Uniforme
                     string corDoGrupo = prop.Cor;
                     int nivelAtualAlvo = prop.NivelCasa;
                     var nomesPropsDoGrupo = EspacoComercial.ObterPropriedadesDoGrupo(corDoGrupo);
-                    
                     bool construcaoUniforme = true;
                     foreach (string nomePropIrma in nomesPropsDoGrupo)
                     {
@@ -426,8 +402,6 @@ namespace Resisto_dos_jogadores
                         elegiveis.Add(prop);
                     }
                 }
-
-                // 2. Mostrar o menu
                 Console.WriteLine($"--- Menu de Compra de Casas ({jogador.Nome} | Saldo: ${jogador.Dinheiro}) ---");
                 if (elegiveis.Count == 0)
                 {
@@ -443,33 +417,21 @@ namespace Resisto_dos_jogadores
                         Console.WriteLine($"  - [{prop.Nome}] ({prop.Cor}) | Custo: ${prop.PrecoCasa} | Nível Atual: {prop.NivelCasa}");
                     }
                 }
-                
-                // 3. Pedir o comando (dentro do sub-menu)
                 Console.WriteLine("\n  Digite o nome da propriedade para comprar (ex: Brown1)");
                 Console.WriteLine("  Ou digite 'SAIR' para voltar ao jogo.");
                 Console.Write("  > ");
                 string input = (Console.ReadLine() ?? "").Trim();
-
-                // 4. Processar o comando
                 if (input.Equals("SAIR", StringComparison.OrdinalIgnoreCase))
                 {
-                    break; // Sai do loop 'while(true)' e volta ao menu principal
+                    break; 
                 }
-                
                 if (string.IsNullOrWhiteSpace(input))
                 {
-                    continue; // Repete o loop se o utilizador só premir Enter
+                    continue; 
                 }
-
-                // Se não for 'SAIR' ou vazio, tenta comprar
-                // Chama o método ComprarCasa INTERNAMENTE
                 ComprarCasa(input);
-                
-                // Após a tentativa de compra (ComprarCasa() já fez a pausa "Pressione Enter"),
-                // o loop 'while(true)' repete-se, limpando o ecrã e mostrando a lista atualizada.
             }
         }
-        
         private void VerPropriedades()
         {
             if (!jogoIniciado) 
@@ -482,10 +444,8 @@ namespace Resisto_dos_jogadores
                     return;
                 }
             }
-            
             var jogador = JogadorAtual ?? jogadores.FirstOrDefault();
             if (jogador == null) { return; } 
-
             Console.WriteLine($"\n--- Propriedades de {jogador.Nome} (${jogador.Dinheiro}) ---");
             var props = ObterPropriedadesDoJogador(jogador);
             if (!props.Any())
@@ -509,7 +469,6 @@ namespace Resisto_dos_jogadores
             Console.Write("\n  Pressione Enter para continuar...");
             Console.ReadLine();
         }
-
         private void ListarEstatisticas()
         {
             Console.WriteLine($"\n--- Estatísticas dos Jogadores ---");
