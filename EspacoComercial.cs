@@ -1,8 +1,7 @@
-// Nome do Ficheiro: EspacoComercial.cs
 using System.Collections.Generic;
 using Resisto_dos_jogadores; 
 using System;
-using System.Linq; // <-- Adicionar 'using System.Linq'
+using System.Linq; // <-- Adicionei 'using System.Linq'
 
 namespace MonopolyGameLogic
 {
@@ -15,7 +14,7 @@ namespace MonopolyGameLogic
 
     public class EspacoComercial
     {
-        // ... (O Dicionário Estático PrecosBase fica igual) ...
+
         private static readonly Dictionary<string, int> PrecosBase = new()
         {
             // Browns
@@ -47,7 +46,6 @@ namespace MonopolyGameLogic
             { "Water Works", 120 }
         };
 
-        // ... (Propriedades, Construtor, Métodos Estáticos ficam iguais) ...
         public string Nome { get; }
         public int Preco { get; } 
         public SistemaJogo.Jogador Dono { get; set; }
@@ -71,7 +69,7 @@ namespace MonopolyGameLogic
 
         public ResultadoCompra TentarComprar(SistemaJogo.Jogador comprador)
         {
-            // ... (Nenhuma mudança nesta função) ...
+    
             if (this.Dono != null)
             {
                 return ResultadoCompra.JaTemDono;
@@ -154,10 +152,10 @@ namespace MonopolyGameLogic
             {
                 var outroJogador = outrosJogadores[0]; // Só há um
                 
-                // Verifica se esse outro jogador tem dinheiro PARA O PREÇO DE LISTA
+                // Verifica se esse outro jogador tem dinheiro PARA O PREÇO DA LISTA
                 if (outroJogador.Dinheiro >= this.Preco)
                 {
-                    OferecerPropriedade(outroJogador); // Oferece pelo preço de lista
+                    OferecerPropriedade(outroJogador); // Oferece pelo preço da lista
                 }
                 else
                 {
@@ -167,7 +165,7 @@ namespace MonopolyGameLogic
             // Cenário 2: Jogo com > 2 jogadores (Leilão)
             else if (totalJogadoresNoJogo > 2)
             {
-                // Filtra apenas quem tem *algum* dinheiro (mínimo $1) para licitar
+                // Filtra apenas quem tem *algum* dinheiro (mínimo $1) para participar
                 var jogadoresElegiveis = outrosJogadores.Where(j => j.Dinheiro > 0).ToList();
                 
                 if (jogadoresElegiveis.Count > 0)
@@ -220,7 +218,7 @@ namespace MonopolyGameLogic
             var licitantesAtivos = new List<SistemaJogo.Jogador>(licitantes);
             int indiceAtual = 0;
 
-            // O leilão continua enquanto houver mais de 1 pessoa disposta a licitar
+            // O leilão continua enquanto houver mais de 1 pessoa disposta a participar
             while (licitantesAtivos.Count > 1)
             {
                 var jogadorAtual = licitantesAtivos[indiceAtual];
@@ -234,11 +232,10 @@ namespace MonopolyGameLogic
                 {
                     Console.WriteLine($"  {jogadorAtual.Nome} desistiu.");
                     licitantesAtivos.RemoveAt(indiceAtual);
-                    // Não incrementa o índice, pois a lista "encolheu"
+               
                 }
                 else if (int.TryParse(input, out int novaLicitacao))
                 {
-                    // Tem que licitar mais, tem que ter o dinheiro, e (se for o primeiro) licitar pelo menos 1
                     if (novaLicitacao > licitacaoAtual && novaLicitacao <= jogadorAtual.Dinheiro && novaLicitacao > 0)
                     {
                         licitacaoAtual = novaLicitacao;
@@ -264,7 +261,7 @@ namespace MonopolyGameLogic
                     Console.WriteLine("  Entrada inválida. Digite um número ou 'P'.");
                 }
 
-                // Gere a "volta" ao círculo
+                
                 if (indiceAtual >= licitantesAtivos.Count)
                 {
                     indiceAtual = 0;
