@@ -7,13 +7,12 @@ namespace MonopolyBoard
         private readonly string[,] spaces;
         private const int Size = 7;
         
-        // <-- MUDANÇA 1: Reduzir a largura da célula
-        // Pode experimentar valores como 12, 13, 14, etc.
+        // Largura da célula reduzida
         private const int CellWidth = 13; 
 
         public Board()
         {
-            // (A definição do array 'spaces' fica igual, bem organizada)
+            // Array formatado para ser legível
             spaces = new string[Size, Size]
             {
                 // Col 0                 Col 1                Col 2                  Col 3                Col 4                Col 5                Col 6
@@ -27,10 +26,9 @@ namespace MonopolyBoard
             };
         }
 
-        // ... (método Display() e GetSpaceName() ficam iguais) ...
         public void Display()
         {
-            Console.WriteLine("\t\t\t\t    === Tabuleiro de Monopólio 7x7 ===\n"); // (Ajustei o título)
+            Console.WriteLine("\t\t\t\t    === Tabuleiro de Monopólio 7x7 ===\n"); // Título ajustado
             DrawTopBorder();
 
             for (int i = 0; i < Size; i++)
@@ -43,6 +41,7 @@ namespace MonopolyBoard
             DrawBottomBorder();
         }
         
+        // Método para obter o nome da casa
         public string GetSpaceName(int row, int col)
         {
             if (row >= 0 && row < Size && col >= 0 && col < Size)
@@ -53,7 +52,7 @@ namespace MonopolyBoard
         }
 
 
-        // ... (métodos DrawTopBorder, DrawMiddleBorder, DrawBottomBorder e DrawRow ficam iguais) ...
+        // --- Métodos de Desenho ---
         private void DrawTopBorder()
         {
             Console.Write("┌");
@@ -98,7 +97,7 @@ namespace MonopolyBoard
             Console.WriteLine();
         }
 
-        // <-- MUDANÇA 2: Método 'CenterText' atualizado para truncar nomes compridos
+        // Método 'CenterText' atualizado para truncar nomes compridos
         private string CenterText(string text, int width)
         {
             text = text.Trim();
@@ -110,13 +109,12 @@ namespace MonopolyBoard
                 return text.Substring(0, width - 1) + "."; 
             }
             
-            // Se for igual, retorna-o
             if (text.Length == width)
             {
                 return text;
             }
 
-            // Lógica original para centrar (agora é seguro)
+            // Lógica original para centrar
             int padding = width - text.Length;
             int padLeft = padding / 2;
             int padRight = padding - padLeft;

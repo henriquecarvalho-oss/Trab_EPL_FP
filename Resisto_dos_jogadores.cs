@@ -1,16 +1,20 @@
+// Nome do Ficheiro: Resisto_dos_jogadores.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MonopolyGameLogic; 
-using MonopolyBoard; 
+using MonopolyGameLogic; // Para DiceRoller e EspacoComercial
+using MonopolyBoard; // Para Board
 
 namespace Resisto_dos_jogadores
 {
     public class SistemaJogo
     {
-        // ... (classe Jogador fica igual) ...
+        // ==================================================================
+        // === CLASSE INTERNA JOGADOR =======================================
+        // ==================================================================
         public class Jogador
         {
+            // --- Propriedades do Jogador ---
             public string Nome { get; set; }
             public int Jogos { get; set; }
             public int Vitorias { get; set; }
@@ -18,7 +22,10 @@ namespace Resisto_dos_jogadores
             public int Derrotas { get; set; }
             public int PosicaoX { get; set; }
             public int PosicaoY { get; set; }
+            public int Dinheiro { get; set; }
+            public bool JaLancouDadosTurno { get; set; }
             
+            // --- Construtor do Jogador ---
             public Jogador(string nome)
             {
                 Nome = nome;
@@ -28,32 +35,128 @@ namespace Resisto_dos_jogadores
                 Derrotas = 0;
                 PosicaoX = 3; 
                 PosicaoY = 3; // Posição "Start" [3, 3]
+                Dinheiro = 1500; // Dinheiro inicial
+                JaLancouDadosTurno = false; 
+            }
+
+            // --- Método de Ação do Jogador ---
+            public void RealizarJogada(DiceRoller diceRoller, Board board, Dictionary<string, EspacoComercial> espacos, SistemaJogo sistema)
+            {
+                // 1. Lançar dados e mover
+                DiceResult resultado = diceRoller.Roll();
+                int novaPosX = this.PosicaoX + resultado.HorizontalMove;
+                int novaPosY = this.PosicaoY + resultado.VerticalMove;
+                
+                this.PosicaoX = Math.Clamp(novaPosX, 0, 6);
+                this.PosicaoY = Math.Clamp(novaPosY, 0, 6);
+                
+                string nomeCasa = board.GetSpaceName(this.PosicaoY, this.PosicaoX);
+                this.JaLancouDadosTurno = true; 
+
+                // 2. Mostrar resultado do movimento
+                Console.WriteLine($"{this.Nome} (${this.Dinheiro}) - Posição: ({this.PosicaoX}, {this.PosicaoY}) [{nomeCasa}]");
+                Console.WriteLine($"  (Dados lançados: X={resultado.HorizontalMove}, Y={resultado.VerticalMove})");
+
+                // 3. Verificar a ação do espaço
+                if (EspacoComercial.EspacoEComercial(nomeCasa))
+                {
+                    // É comprável (ou tem dono)
+                    var espaco = espacos[nomeCasa];
+                    
+                    // <-- MUDANÇA 1: Passar o 'sistema' para o EspacoComercial -->
+                    // Agora o EspacoComercial sabe quem são os outros jogadores
+                    espaco.AterrarNoEspaco(this, sistema); 
+                }
+                else if (nomeCasa == "Lux Tax")
+                {
+                    // É o Imposto!
+                    int imposto = 80;
+                    Console.WriteLine($"  Você aterrou em [Lux Tax]! Pague ${imposto}.");
+                    this.Dinheiro -= imposto;
+                    
+                    sistema.AdicionarDinheiroFreePark(imposto); 
+                    
+                    Console.WriteLine($"  $80 movidos para o FreePark. O seu novo saldo é ${this.Dinheiro}.");
+                    Console.Write("  Pressione Enter para continuar...");
+                    Console.ReadLine();
+                }
+                else if (nomeCasa == "FreePark")
+                {
+                    // É o FreePark!
+                    int premio = sistema.DinheiroFreePark; // Pega o valor do pote
+                    if (premio > 0)
+                    {
+                        Console.WriteLine($"  Você aterrou em [FreePark] e recolheu ${premio}!");
+                        this.Dinheiro += premio;
+                        sistema.ZerarDinheiroFreePark(); // Esvazia o pote
+                        Console.WriteLine($"  O seu novo saldo é ${this.Dinheiro}.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("  Você aterrou em [FreePark]. (Não há dinheiro acumulado.)");
+                    }
+                    Console.Write("  Pressione Enter para continuar...");
+                    Console.ReadLine();
+                }
             }
         }
+        // ==================================================================
+        // === FIM DA CLASSE JOGADOR ========================================
+        // ==================================================================
 
+
+        // --- Propriedades do SistemaJogo ---
         private readonly List<Jogador> jogadores = new();
-        private readonly DiceRoller diceRoller = new();
-        private readonly Board board;
-        
+        private readonly DiceRoller diceRoller = new(); 
+        private readonly Board board; 
+        private readonly Dictionary<string, EspacoComercial> espacosComerciais = new(); 
         private bool jogoIniciado = false;
-
-        public bool JogoIniciado
-        {
-            get { return jogoIniciado; }
-        }
+        private int dinheiroFreePark = 0;
         
-        // <-- MUDANÇA 1: Propriedade para o Program.cs saber a contagem
-        public int ContagemJogadores
-        {
-            get { return jogadores.Count; }
-        }
-
+        // Propriedades públicas
+        public bool JogoIniciado => jogoIniciado;
+        public int ContagemJogadores => jogadores.Count; // Já existe e é o que precisamos
+        public int DinheiroFreePark => dinheiroFreePark;
+        
+        
+        // --- Construtor do SistemaJogo ---
         public SistemaJogo(Board board)
         {
             this.board = board;
+            InicializarEspacos(); 
         }
 
-        // ... (ObterJogadoresOrdenados fica igual) ...
+        private void InicializarEspacos()
+        {
+            var precosBase = EspacoComercial.ObterPrecosBase();
+            foreach (var par in precosBase)
+            {
+                string nome = par.Key;
+                int preco = par.Value;
+                espacosComerciais.Add(nome, new EspacoComercial(nome, preco));
+            }
+        }
+
+        public void AdicionarDinheiroFreePark(int valor)
+        {
+            dinheiroFreePark += valor;
+        }
+
+        public void ZerarDinheiroFreePark()
+        {
+            dinheiroFreePark = 0;
+        }
+        
+        // <-- MUDANÇA 2: Novo método público para o EspacoComercial usar -->
+        /// <summary>
+        /// Obtém uma lista de todos os jogadores, exceto o jogador atual.
+        /// </summary>
+        public List<Jogador> ObterOutrosJogadores(Jogador jogadorAtual)
+        {
+            return jogadores.Where(j => j != jogadorAtual).ToList();
+        }
+
+
         public IEnumerable<Jogador> ObterJogadoresOrdenados()
         {
             return jogadores
@@ -61,10 +164,10 @@ namespace Resisto_dos_jogadores
                 .ThenBy(j => j.Nome);
         }
 
-        // *** MÉTODO 'ExecutarComando' ATUALIZADO ***
+        // --- Método Principal de Comandos (fica igual) ---
         public bool ExecutarComando(string linha)
         {
-            // ... (Q, split, etc. fica igual) ...
+            // ... (Nenhuma mudança nesta função) ...
             string linhaLimpa = linha.Trim();
 
             if (linhaLimpa.Equals("q", StringComparison.OrdinalIgnoreCase))
@@ -85,7 +188,7 @@ namespace Resisto_dos_jogadores
 
             switch (instrucao)
             {
-                case "IJ":
+                case "IJ": // Iniciar Jogo
                     if (partes.Length != 1)
                     {
                         MostrarInstrucaoInvalida();
@@ -97,8 +200,7 @@ namespace Resisto_dos_jogadores
                     }
                     break;
 
-                case "RJ":
-                    // Proteção 1: Jogo já começou?
+                case "RJ": // Registar Jogador
                     if (jogoIniciado)
                     {
                         Console.WriteLine("Erro: Não pode registar jogadores depois do jogo começar.");
@@ -107,7 +209,6 @@ namespace Resisto_dos_jogadores
                         return false;
                     }
                     
-                    // <-- MUDANÇA 2: Proteção 2 (Limite Máximo)
                     if (jogadores.Count >= 5)
                     {
                         Console.WriteLine("Erro: O limite máximo de 5 jogadores foi atingido.");
@@ -126,8 +227,8 @@ namespace Resisto_dos_jogadores
                         RegistarJogador(partes[1]);
                     }
                     break;
-
-                case "LD":
+                
+                case "LD": // Lançar Dados
                     if (!jogoIniciado)
                     {
                         Console.WriteLine("Erro: O jogo ainda não começou. Use o comando 'IJ'.");
@@ -155,9 +256,11 @@ namespace Resisto_dos_jogadores
             return true;
         }
 
-        // *** MÉTODO 'IniciarJogo' ATUALIZADO ***
+        // --- Métodos de Lógica do Jogo (ficam iguais) ---
+
         private void IniciarJogo()
         {
+            // ... (Nenhuma mudança nesta função) ...
             if (jogoIniciado)
             {
                 Console.WriteLine("O jogo já foi iniciado.");
@@ -166,7 +269,6 @@ namespace Resisto_dos_jogadores
                 return;
             }
 
-            // <-- MUDANÇA 3: Alterar a verificação de 0 para 2 (Limite Mínimo)
             if (jogadores.Count < 2)
             {
                 Console.WriteLine($"Erro: São necessários pelo menos 2 jogadores para iniciar. (Atuais: {jogadores.Count})");
@@ -183,9 +285,9 @@ namespace Resisto_dos_jogadores
         }
 
 
-        // ... (RegistarJogador, LancarDados, MostrarInstrucaoInvalida ficam iguais) ...
         private void RegistarJogador(string nome)
         {
+            // ... (Nenhuma mudança nesta função) ...
             if (jogadores.Any(j => j.Nome.Equals(nome, StringComparison.OrdinalIgnoreCase)))
             {
                 Console.WriteLine("Jogador existente.");
@@ -199,6 +301,7 @@ namespace Resisto_dos_jogadores
         
         private void LancarDados(string nomeJogador)
         {
+            // ... (Nenhuma mudança nesta função) ...
             var jogador = jogadores.FirstOrDefault(j => j.Nome.Equals(nomeJogador, StringComparison.OrdinalIgnoreCase));
 
             if (jogador == null)
@@ -207,22 +310,13 @@ namespace Resisto_dos_jogadores
                 return; 
             }
 
-            DiceResult resultado = diceRoller.Roll();
-            
-            int novaPosX = jogador.PosicaoX + resultado.HorizontalMove;
-            int novaPosY = jogador.PosicaoY + resultado.VerticalMove;
-            
-            jogador.PosicaoX = Math.Clamp(novaPosX, 0, 6);
-            jogador.PosicaoY = Math.Clamp(novaPosY, 0, 6);
-            
-            string nomeCasa = board.GetSpaceName(jogador.PosicaoY, jogador.PosicaoX);
-
-            Console.WriteLine($"{jogador.Nome} (Jogos:{jogador.Jogos} V:{jogador.Vitorias} E:{jogador.Empates} D:{jogador.Derrotas}) - Posição: ({jogador.PosicaoX}, {jogador.PosicaoY}) [{nomeCasa}]");
-            Console.WriteLine($"  (Dados lançados: X={resultado.HorizontalMove}, Y={resultado.VerticalMove})");
+            // Passa 'this' (o SistemaJogo) para o Jogador
+            jogador.RealizarJogada(diceRoller, board, espacosComerciais, this);
         }
         
         private void MostrarInstrucaoInvalida()
         {
+            // ... (Nenhuma mudança nesta função) ...
             Console.WriteLine("2025-2026");
             Console.WriteLine("Instrução inválida.");
             Console.Write("Pressione Enter para reiniciar...");

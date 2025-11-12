@@ -1,4 +1,5 @@
-﻿using System;
+﻿// Nome do Ficheiro: Program.cs
+using System;
 using System.Linq; 
 using MonopolyBoard;
 using Resisto_dos_jogadores;
@@ -30,10 +31,16 @@ class Program
             {
                 RedesenharUI(); 
             }
+            
+            // Redesenha a UI DEPOIS do 'LD' para atualizar
+            // o dinheiro, donos, E o pote do FreePark.
+            if (comando == "LD" && sucesso)
+            {
+                RedesenharUI();
+            }
         }
     }
 
-    // *** MÉTODO 'RedesenharUI' ATUALIZADO ***
     static void RedesenharUI()
     {
         Console.Clear(); 
@@ -41,8 +48,6 @@ class Program
 
         Console.WriteLine("\n--- Jogadores Registados ---");
         
-        // <-- MUDANÇA: Adicionar a contagem de jogadores
-        // (Só mostra esta contagem antes de o jogo começar)
         if (!sistema.JogoIniciado)
         {
             Console.WriteLine($"({sistema.ContagemJogadores}/5 jogadores registados)");
@@ -59,9 +64,16 @@ class Program
             foreach (var j in jogadores)
             {
                 string nomeCasa = board.GetSpaceName(j.PosicaoY, j.PosicaoX);
-                Console.WriteLine($"- {j.Nome} (Jogos:{j.Jogos} V:{j.Vitorias} E:{j.Empates} D:{j.Derrotas}) - Posição: ({j.PosicaoX}, {j.PosicaoY}) [{nomeCasa}]");
+                Console.WriteLine($"- {j.Nome} (${j.Dinheiro}) (Jogos:{j.Jogos} V:{j.Vitorias} E:{j.Empates} D:{j.Derrotas}) - Posição: ({j.PosicaoX}, {j.PosicaoY}) [{nomeCasa}]");
             }
         }
+
+        // <-- MUDANÇA: Mostrar o pote do FreePark -->
+        if (sistema.JogoIniciado)
+        {
+            Console.WriteLine($"\n Dinheiro no FreePark: ${sistema.DinheiroFreePark}");
+        }
+   
 
         Console.WriteLine("\n=== Sistema de Registo de Jogadores ===");
         Console.WriteLine("Comandos disponíveis:");
