@@ -15,7 +15,10 @@ namespace MonopolyGameLogic
 
     public class EspacoComercial
     {
-        // ... (Dicionário PrecosBase fica igual) ...
+        // ==================================================================
+        // --- DICIONÁRIOS ESTÁTICOS (COM DADOS) ---
+        // ==================================================================
+        
         private static readonly Dictionary<string, int> PrecosBase = new()
         {
             // (Lista completa de preços)
@@ -31,9 +34,6 @@ namespace MonopolyGameLogic
             { "Train3", 150 }, { "Train4", 150 }, { "Electric Company", 120 }, { "Water Works", 120 }
         };
  
-        // <-- MUDANÇA 1: O Dicionário 'RendasBase' foi REMOVIDO -->
-        
-        // ... (Dicionário GruposDeCor fica igual) ...
         private static readonly Dictionary<string, string[]> GruposDeCor = new()
         {
             { "Brown", new[] { "Brown1", "Brown2" } },
@@ -53,9 +53,7 @@ namespace MonopolyGameLogic
         // --- Propriedades da Classe ---
         public string Nome { get; }
         public int Preco { get; } 
-        // <-- MUDANÇA 2: A propriedade 'Renda' foi REMOVIDA -->
         public SistemaJogo.Jogador Dono { get; set; }
-        
         public int NivelCasa { get; set; } // Nível 0 = sem casas, Nível 5 = Hotel
         public int PrecoCasa { get; } // Preço para comprar UMA casa
         public string Cor { get; } // A cor do grupo (ex: "Brown")
@@ -67,18 +65,15 @@ namespace MonopolyGameLogic
             Preco = preco; 
             Dono = null; 
             NivelCasa = 0; // Começa sem casas
-            
-            // <-- MUDANÇA 3: A atribuição da Renda Base foi REMOVIDA -->
-            
-            // Define o Preço da Casa
-            PrecoCasa = (int)(Preco * 0.6); 
-
-            // Encontra a cor desta propriedade
-            Cor = ObterCorDaPropriedade(nome);
+            PrecoCasa = (int)(Preco * 0.6); // Preço da casa é 60% do preço base
+            Cor = ObterCorDaPropriedade(nome); // Encontra a cor
         }
         
         
-        // --- Métodos Estáticos (ficam iguais) ---
+        // ==================================================================
+        // --- MÉTODOS ESTÁTICOS (OS QUE ESTAVAM VERMELHOS) ---
+        // ==================================================================
+        
         public static bool EspacoEComercial(string nome)
         {
             return PrecosBase.ContainsKey(nome);
@@ -98,7 +93,7 @@ namespace MonopolyGameLogic
                     return par.Key; 
                 }
             }
-            return null; 
+            return null; // Não é uma propriedade de cor (ex: Comboio, Elétrica)
         }
         
         public static string[] ObterPropriedadesDoGrupo(string cor)
@@ -106,9 +101,10 @@ namespace MonopolyGameLogic
             return GruposDeCor.ContainsKey(cor) ? GruposDeCor[cor] : null;
         }
         
-        // --- Métodos de Lógica ---
+        // ==================================================================
+        // --- MÉTODOS DE LÓGICA ---
+        // ==================================================================
         
-        // ... (TentarComprar fica igual) ...
         public ResultadoCompra TentarComprar(SistemaJogo.Jogador comprador)
         {
             if (this.Dono != null) { return ResultadoCompra.JaTemDono; }
@@ -118,13 +114,12 @@ namespace MonopolyGameLogic
             return ResultadoCompra.Sucesso;
         }
         
-        // ... (AterrarNoEspaco fica igual) ...
         public void AterrarNoEspaco(SistemaJogo.Jogador jogador, SistemaJogo sistema)
         {
             // 1. Verificar se tem dono
             if (this.Dono == null)
             {
-                // (Lógica de compra/leilão - Fica tudo igual)
+                // Lógica de compra/leilão
                 if (jogador.Dinheiro >= this.Preco)
                 {
                     string resposta = ""; 
@@ -162,7 +157,7 @@ namespace MonopolyGameLogic
                 else
                 {
                     // É de outro jogador! Pagar Renda!
-                    PagarRenda(jogador, this.Dono);
+                    PagarRenda(jogador, this.Dono, sistema);
                 }
             }
             // Pausa no final da jogada (sempre acontece)
@@ -170,16 +165,11 @@ namespace MonopolyGameLogic
             Console.ReadLine();
         }
         
-        // <-- MUDANÇA 4: MÉTODO 'PAGARRENDA' ATUALIZADO COM A TUA FÓRMULA -->
-        private void PagarRenda(SistemaJogo.Jogador inquilino, SistemaJogo.Jogador proprietario)
+        private void PagarRenda(SistemaJogo.Jogador inquilino, SistemaJogo.Jogador proprietario, SistemaJogo sistema)
         {
-            // Calcula a renda usando a fórmula:
-            // PreçoDoEspaço * 0,25 + PreçoDoEspaço * 0,75 * NúmeroDeCasasNoEspaço
-            // (this.Preco * 0.25) é a renda base (NivelCasa = 0)
+            // Calcula a renda usando a fórmula
             double rendaBase = this.Preco * 0.25;
             double rendaCasas = this.Preco * 0.75 * this.NivelCasa;
-            
-            // Converte para int para usar como dinheiro
             int valorRenda = (int)(rendaBase + rendaCasas); 
             
             Console.WriteLine($"  Você aterrou em [{this.Nome}], que pertence a {proprietario.Nome}!");
@@ -193,30 +183,26 @@ namespace MonopolyGameLogic
                 Console.WriteLine($"  A renda base é de ${valorRenda}.");
             }
 
-            // (O resto da lógica de pagamento/falência fica igual)
-            if (inquilino.Dinheiro >= valorRenda)
+            // Usa o TentarPagar para processar a bancarrota se necessário
+            if (sistema.TentarPagar(inquilino, valorRenda, $"renda a {proprietario.Nome}"))
             {
-                inquilino.Dinheiro -= valorRenda;
+                // Se o pagamento foi bem-sucedido:
                 proprietario.Dinheiro += valorRenda;
                 Console.WriteLine($"  Você pagou ${valorRenda}. O seu saldo é ${inquilino.Dinheiro}.");
                 Console.WriteLine($"  {proprietario.Nome} recebeu ${valorRenda}. O saldo dele é ${proprietario.Dinheiro}.");
             }
-            else
-            {
-                int dinheiroPago = inquilino.Dinheiro;
-                inquilino.Dinheiro = 0;
-                proprietario.Dinheiro += dinheiroPago;
-                
-                Console.WriteLine($"  Você não tem dinheiro suficiente para a renda completa!");
-                Console.WriteLine($"  Você pagou os seus últimos ${dinheiroPago} e está arruinado (saldo $0).");
-            }
+            // Se falhou, o TentarPagar já tratou da bancarrota.
         }
         
-        // ... (O resto do ficheiro - ExecutarLogicaDeRecusa, OferecerPropriedade, IniciarLeilao - fica IGUAL) ...
+        // ==================================================================
+        // --- MÉTODOS DE LEILÃO/RECUSA (SEM ALTERAÇÕES) ---
+        // ==================================================================
+        
         private void ExecutarLogicaDeRecusa(SistemaJogo.Jogador jogadorQueRecusou, SistemaJogo sistema)
         {
             var outrosJogadores = sistema.ObterOutrosJogadores(jogadorQueRecusou);
-            int totalJogadoresNoJogo = sistema.ContagemJogadores;
+            int totalJogadoresNoJogo = outrosJogadores.Count + 1; // +1 para incluir o próprio jogador
+            
             if (totalJogadoresNoJogo == 2)
             {
                 var outroJogador = outrosJogadores[0]; 

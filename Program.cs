@@ -8,6 +8,9 @@ class Program
 {
     static Board board = new Board();
     static SistemaJogo sistema = new SistemaJogo(board); 
+    
+    // Constante para o centro do tabuleiro (Offset)
+    private const int CentroTabuleiro = 3;
 
     static void Main()
     {
@@ -57,9 +60,24 @@ class Program
         {
             foreach (var j in jogadores)
             {
-                string prefixo = (j == jogadorAtual) ? "→ " : "- ";
-                string nomeCasa = board.GetSpaceName(j.PosicaoY, j.PosicaoX);
-                Console.WriteLine($"{prefixo}{j.Nome} (${j.Dinheiro}) Posição: [{nomeCasa}]");
+                // ==================================================================================
+                // <-- MUDANÇA AQUI: Mostrar o estado (Ativo vs. Fora de Jogo) -->
+                
+                if (sistema.JogoIniciado && !j.EstaEmJogo)
+                {
+                    // Jogador está fora de jogo
+                    Console.WriteLine($"- {j.Nome} (Fora de Jogo)");
+                }
+                else
+                {
+                    // Jogador está ativo ou o jogo não começou
+                    string prefixo = (j == jogadorAtual) ? "→ " : "- ";
+                    int arrayRow = j.PosicaoY + CentroTabuleiro;
+                    int arrayCol = j.PosicaoX + CentroTabuleiro;
+                    string nomeCasa = board.GetSpaceName(arrayRow, arrayCol);
+                    Console.WriteLine($"{prefixo}{j.Nome} (${j.Dinheiro}) Posição: ({j.PosicaoX}, {j.PosicaoY}) [{nomeCasa}]");
+                }
+                // ==================================================================================
             }
         }
 
@@ -75,7 +93,6 @@ class Program
         Console.WriteLine("\n=== Sistema de Jogo ===");
         Console.WriteLine("Comandos disponíveis:");
         
-        // <-- MUDANÇA: Menu de comandos atualizado -->
         if (!sistema.JogoIniciado)
         {
             Console.WriteLine("  RJ NomeJogador  → Regista novo jogador (Máx 5)");
@@ -87,6 +104,13 @@ class Program
             Console.WriteLine("  LD              → Lança os dados (inicia o turno)");
             Console.WriteLine("  CC              → Abre o menu de compra de casas");
             Console.WriteLine("  PROPS           → Vê as suas propriedades");
+            Console.WriteLine("  EPT             → Propõe um empate aos outros jogadores");
+            
+            // ==================================================================================
+            // <-- MUDANÇA AQUI: Novo comando DS visível -->
+            Console.WriteLine("  DS              → Desistir do jogo (perde)");
+            // ==================================================================================
+            
             Console.WriteLine("  ET              → Encerrar o seu turno");
         }
         
